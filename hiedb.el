@@ -45,6 +45,8 @@
             ("\C-c\C-dd" . hiedb-interactive-defs)
             ("\C-c\C-d\i" . hiedb-interactive-info)
             ("\C-c\C-d\s" . hiedb-interactive-reindex)
+            ("\C-c\C-dT" . hiedb-interactive-type-def)
+            ("\C-c\C-dN" . hiedb-interactive-name-def)
             )
   )
 
@@ -63,6 +65,21 @@
   (interactive)
   (let ((module (hiedb-module-from-path)))
     (hiedb-query-point-types module (line-number-at-pos) (1+ (current-column)))))
+
+(defun hiedb-interactive-type-def ()
+  "Look up definition of type."
+  (interactive)
+  (let ((value (read-string "Type name: ")))
+    (hiedb-def-command "type-def" value)
+    ))
+
+(defun hiedb-interactive-name-def ()
+  "Look up definition of type."
+  (interactive)
+  (let ((value (read-string "Constructor name: ")))
+    (hiedb-def-command "name-def" value)
+    ))
+
 
 ;;;###autoload
 (defun hiedb-interactive-defs ()
@@ -124,15 +141,36 @@
                                                       )))
     ))
 
+(defun hiedb-def-command (defCmdName nameInput)
+  (let*
+      ((log-buffer (get-buffer-create "*hiedb*")))
+    (message (format "%s -D %s %s %s"
+                     hiedb-command
+                     hiedb-dbfile
+                     defCmdName
+                     nameInput))
+    (set-buffer log-buffer)
+    (read-only-mode -1)
+    (with-current-buffer log-buffer
+      (erase-buffer)
+      (make-process :name (format "%s %s" "hiedb" defCmdName)
+                    :buffer log-buffer
+                    :command (list hiedb-command "-D" hiedb-dbfile defCmdName nameInput)
+                    :stderr log-buffer))
+    (read-only-mode 1)
+    (display-buffer log-buffer
+                    '(display-buffer-pop-up-window . ((side . top)
+                                                      (window-height . 5)
+                                                      (mode . (special-mode))
+                                                      )))))
+
 (defun hiedb-reindex ()
   (let*
-      ((log-buffer (get-buffer-create "*hiedb*"))
-       (cmd-args (format "-D %s index %s"
-                         hiedb-dbfile
-                         hiedb-hiefiles
-                         ))
-       )
-    (message (format "%s %s" hiedb-command cmd-args))
+      ((log-buffer (get-buffer-create "*hiedb*")))
+    (message (format "%s -D -%s index %s"
+                     hiedb-command
+                     hiedb-dbfile
+                     hiedb-hiefiles))
     (set-buffer log-buffer)
     (read-only-mode -1)
     (with-current-buffer log-buffer
